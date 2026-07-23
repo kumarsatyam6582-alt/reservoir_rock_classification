@@ -206,10 +206,15 @@ auto_crop = st.checkbox("🔍 Auto-crop to focus on rock texture (recommended fo
 
 zoom_level = 0.35
 if auto_crop:
-    zoom_level = st.slider(
-        "Zoom level (lower = zoom in more)",
-        min_value=0.15, max_value=0.8, value=0.35, step=0.05
+    zoom_amount = st.slider(
+        "🔎 Zoom",
+        min_value=0.0, max_value=1.0, value=0.65, step=0.05,
+        help="0 = no zoom (full image), 1 = maximum zoom into the center"
     )
+    # Map intuitive 0-1 zoom to the internal crop_fraction (smaller = more zoomed in)
+    MIN_CROP_FRACTION = 0.15  # tightest possible crop at zoom = 1
+    zoom_level = 1.0 - zoom_amount * (1.0 - MIN_CROP_FRACTION)
+    st.caption(f"Zoom: {int(zoom_amount * 100)}%")
 
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
