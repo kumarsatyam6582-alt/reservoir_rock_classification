@@ -125,6 +125,16 @@ def show_result(pil_image, predicted_class, confidence, prediction):
                     as a best guess rather than a certain match.
                 </div>
             """, unsafe_allow_html=True)
+        elif predicted_class == "garbage" and confidence >= 90:
+            st.markdown("""
+                <div class="warning-box">
+                    ⚠️ <b>Possible out-of-scope image.</b><br>
+                    A confident "garbage" result can also happen when a real rock photo looks
+                    very different from the model's training images (e.g. a full specimen with
+                    a background, rather than a close-up surface texture). If you're confident
+                    this is a real rock, try a closer, plain-background crop of just the surface.
+                </div>
+            """, unsafe_allow_html=True)
 
         with st.expander("See all class probabilities"):
             for cls, prob in zip(class_names, prediction[0]):
@@ -155,6 +165,15 @@ if example_files:
                 selected_example = path
 
 # --- Upload section ---
+st.markdown("""
+    <div style="background-color:#eaf2fb; border-left:5px solid #3498db; padding:0.9rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-size:0.92rem; color:#2c3e50;">
+        📸 <b>For best results:</b> upload a close-up, well-lit photo of the rock's surface texture
+        (similar to a cuttings/core sample crop) rather than a full specimen photo with a background.
+        Whole-rock photos with backgrounds or unusual lighting are outside what this model was trained on
+        and may be misclassified.
+    </div>
+""", unsafe_allow_html=True)
+
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
