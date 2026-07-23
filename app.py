@@ -54,8 +54,7 @@ def load_my_model():
 with st.spinner("Loading model..."):
     model = load_my_model()
 
-class_names = ["class1", "class2", "class3"]
-
+class_names = ["garbage", "limestone", "sandstone", "shale"]
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
