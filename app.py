@@ -81,10 +81,11 @@ class_names = ["garbage", "limestone", "sandstone", "shale"]
 CONFIDENCE_THRESHOLD = 65  # percent
 
 
-def auto_center_crop(pil_img, crop_fraction=0.6):
+def auto_center_crop(pil_img, crop_fraction=0.35):
     """Crop toward the center of the image to focus on rock texture and
     reduce the influence of background/context -- simulates a closer,
     more 'texture-crop' style photo similar to the training data.
+    A smaller crop_fraction zooms in further.
     """
     w, h = pil_img.size
 
@@ -104,7 +105,7 @@ def auto_center_crop(pil_img, crop_fraction=0.6):
     return zoomed
 
 
-def run_prediction(image_source, apply_auto_crop=True):
+def run_prediction(image_source, apply_auto_crop=True, zoom_level=0.35):
     """Run the model on an uploaded file or file path and return
     (predicted_class, confidence, full_prediction_array, display_image).
 
@@ -115,7 +116,7 @@ def run_prediction(image_source, apply_auto_crop=True):
     pil_img = Image.open(image_source).convert("RGB")
 
     if apply_auto_crop:
-        pil_img = auto_center_crop(pil_img)
+        pil_img = auto_center_crop(pil_img, crop_fraction=zoom_level)
 
     img = pil_img.resize((224, 224), resample=Image.NEAREST)
     img_array = image.img_to_array(img) / 255.0
@@ -203,16 +204,23 @@ st.markdown("""
 
 auto_crop = st.checkbox("🔍 Auto-crop to focus on rock texture (recommended for full specimen photos)", value=True)
 
+zoom_level = 0.35
+if auto_crop:
+    zoom_level = st.slider(
+        "Zoom level (lower = zoom in more)",
+        min_value=0.15, max_value=0.8, value=0.35, step=0.05
+    )
+
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     with st.spinner("Analyzing image..."):
-        predicted_class, confidence, prediction, display_image = run_prediction(uploaded_file, apply_auto_crop=auto_crop)
+        predicted_class, confidence, prediction, display_image = run_prediction(uploaded_file, apply_auto_crop=auto_crop, zoom_level=zoom_level)
     show_result(display_image, predicted_class, confidence, prediction)
 
 elif selected_example is not None:
     with st.spinner("Analyzing image..."):
-        predicted_class, confidence, prediction, display_image = run_prediction(selected_example, apply_auto_crop=auto_crop)
+        predicted_class, confidence, prediction, display_image = run_prediction(selected_example, apply_auto_crop=auto_crop, zoom_level=zoom_level)
     show_result(display_image, predicted_class, confidence, prediction)
 
 else:
