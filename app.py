@@ -1,6 +1,7 @@
 import streamlit as st
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from PIL import Image
 import numpy as np
 import os
 
@@ -80,29 +81,56 @@ class_names = ["garbage", "limestone", "sandstone", "shale"]
 CONFIDENCE_THRESHOLD = 65  # percent
 
 
-def run_prediction(image_source):
-    """Run the model on an uploaded file or file path and return
-    (predicted_class, confidence, full_prediction_array, pil_image_for_display).
-
-    Uses keras's image.load_img with default 'nearest' interpolation so that
-    resizing exactly matches the training pipeline (ImageDataGenerator also
-    uses 'nearest' by default) -- using a different interpolation method here
-    can shift borderline predictions.
+def auto_center_crop(pil_img, crop_fraction=0.6):
+    """Crop toward the center of the image to focus on rock texture and
+    reduce the influence of background/context -- simulates a closer,
+    more 'texture-crop' style photo similar to the training data.
     """
-    img = image.load_img(image_source, target_size=(224, 224))
+    w, h = pil_img.size
+
+    # First crop to a centered square using the shorter side
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    square = pil_img.crop((left, top, left + side, top + side))
+
+    # Then zoom further into the center by crop_fraction
+    zoom_side = int(side * crop_fraction)
+    sq_w, sq_h = square.size
+    left2 = (sq_w - zoom_side) // 2
+    top2 = (sq_h - zoom_side) // 2
+    zoomed = square.crop((left2, top2, left2 + zoom_side, top2 + zoom_side))
+
+    return zoomed
+
+
+def run_prediction(image_source, apply_auto_crop=True):
+    """Run the model on an uploaded file or file path and return
+    (predicted_class, confidence, full_prediction_array, display_image).
+
+    Resizing uses 'nearest' interpolation to match the training pipeline
+    (ImageDataGenerator also uses 'nearest' by default) -- a different
+    interpolation method here can shift borderline predictions.
+    """
+    pil_img = Image.open(image_source).convert("RGB")
+
+    if apply_auto_crop:
+        pil_img = auto_center_crop(pil_img)
+
+    img = pil_img.resize((224, 224), resample=Image.NEAREST)
     img_array = image.img_to_array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     prediction = model.predict(img_array, verbose=0)
     predicted_class = class_names[np.argmax(prediction)]
     confidence = np.max(prediction) * 100
-    return predicted_class, confidence, prediction, img
+    return predicted_class, confidence, prediction, pil_img
 
 
 def show_result(pil_image, predicted_class, confidence, prediction):
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.image(pil_image, caption="Uploaded Image", use_container_width=True)
+        st.image(pil_image, caption="Image analyzed by the model", use_container_width=True)
 
     with col2:
         st.markdown(f"""
@@ -167,24 +195,25 @@ if example_files:
 # --- Upload section ---
 st.markdown("""
     <div style="background-color:#eaf2fb; border-left:5px solid #3498db; padding:0.9rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-size:0.92rem; color:#2c3e50;">
-        📸 <b>For best results:</b> upload a close-up, well-lit photo of the rock's surface texture
-        (similar to a cuttings/core sample crop) rather than a full specimen photo with a background.
-        Whole-rock photos with backgrounds or unusual lighting are outside what this model was trained on
-        and may be misclassified.
+        📸 <b>Tip:</b> for best results, upload a well-lit photo focused on the rock's surface
+        texture. If you upload a full specimen photo with a background, this app can automatically
+        zoom into the center of the image to approximate a closer texture crop.
     </div>
 """, unsafe_allow_html=True)
+
+auto_crop = st.checkbox("🔍 Auto-crop to focus on rock texture (recommended for full specimen photos)", value=True)
 
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     with st.spinner("Analyzing image..."):
-        predicted_class, confidence, prediction, pil_image = run_prediction(uploaded_file)
-    show_result(pil_image, predicted_class, confidence, prediction)
+        predicted_class, confidence, prediction, display_image = run_prediction(uploaded_file, apply_auto_crop=auto_crop)
+    show_result(display_image, predicted_class, confidence, prediction)
 
 elif selected_example is not None:
     with st.spinner("Analyzing image..."):
-        predicted_class, confidence, prediction, pil_image = run_prediction(selected_example)
-    show_result(pil_image, predicted_class, confidence, prediction)
+        predicted_class, confidence, prediction, display_image = run_prediction(selected_example, apply_auto_crop=auto_crop)
+    show_result(display_image, predicted_class, confidence, prediction)
 
 else:
     st.info("👆 Upload an image above to get started")
