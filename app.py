@@ -30,6 +30,13 @@ st.markdown("""
         border-radius: 8px;
         margin-top: 1rem;
     }
+    .warning-box {
+        background-color: #fef9e7;
+        border-left: 5px solid #f39c12;
+        padding: 1.2rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
     .stButton>button {
         border-radius: 8px;
     }
@@ -55,6 +62,8 @@ with st.spinner("Loading model..."):
     model = load_my_model()
 
 class_names = ["garbage", "limestone", "sandstone", "shale"]
+CONFIDENCE_THRESHOLD = 65  # percent
+
 uploaded_file = st.file_uploader("📤 Choose a rock image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -82,6 +91,16 @@ if uploaded_file is not None:
         st.write("**Confidence**")
         st.progress(int(confidence))
         st.write(f"{confidence:.2f}%")
+
+        if confidence < CONFIDENCE_THRESHOLD:
+            st.markdown("""
+                <div class="warning-box">
+                    ⚠️ <b>Low confidence prediction.</b><br>
+                    This image may differ from the conditions the model was trained on
+                    (lighting, resolution, or rock surface texture). Treat this result
+                    as a best guess rather than a certain match.
+                </div>
+            """, unsafe_allow_html=True)
 
         with st.expander("See all class probabilities"):
             for cls, prob in zip(class_names, prediction[0]):
